@@ -25,8 +25,7 @@ public class Client : Object {
 
     // TODO: public Group[] grouped { get; private set; }
     // TODO: public Tag[] tags { get; private set; }
-    public List<weak string> _grouped = new List<weak string>();
-    public List<weak string> grouped { owned get { return _grouped.copy(); } }
+    public string[] grouped { get; private set; }
     public string swallowing { get; private set; }
     public int focus_history_id { get; private set; }
 
@@ -52,9 +51,15 @@ public class Client : Object {
         height = (int)obj.get_array_member("size").get_int_element(1);
         fullscreen = (Fullscreen)obj.get_int_member("fullscreen");
         fullscreen_client = (Fullscreen)obj.get_int_member("fullscreenClient");
-
-        foreach (var addr in obj.get_array_member("grouped").get_elements())
-            _grouped.append(addr.get_string().replace("0x", ""));
+        
+        string[] _grouped = {};
+        foreach (unowned Json.Node node in obj.get_array_member("grouped").get_elements()) {
+            unowned string raw_val = node.get_string();
+            if (raw_val != null) {
+                _grouped += raw_val.replace("0x", "");
+            }
+        }
+        grouped = _grouped;
 
         workspace = hyprland.get_workspace((int)obj.get_object_member("workspace").get_int_member("id"));
         monitor = hyprland.get_monitor((int)obj.get_int_member("monitor"));
