@@ -380,6 +380,7 @@ public class Hyprland : Object {
             var g = get_group_from_addresses(adresses);
             if (g != null) g.sync(adresses);
         }
+        notify_property("groups");
         _clean_groups(clients);
     }
 
