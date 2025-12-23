@@ -177,6 +177,12 @@ public class Hyprland : Object {
     public signal void monitor_added(Monitor monitor);
     public signal void monitor_removed(int id);
 
+    public signal void added_to_group(string address);
+    public signal void removed_from_group(string address);
+    public signal void ignoring_group_lock(int state);
+    public signal void locking_groups(int state);
+
+
     private SocketConnection socket2;
 
     private SocketConnection? connection(string socket) {
@@ -532,7 +538,6 @@ public class Hyprland : Object {
                 yield sync_clients();
                 break;
             }
-            // TODO:
             case "togglegroup": {
                 var argv = args[1].split(",");
                 yield sync_clients();
@@ -547,16 +552,20 @@ public class Hyprland : Object {
             }
             case "moveintogroup": {
                 yield sync_clients();
+                added_to_group(args[1]);
                 break;
             }
             case "moveoutofgroup": {
                 yield sync_clients();
+                removed_from_group(args[1]);
                 break;
             }
             case "ignoregrouplock":{
+                ignoring_group_lock(int.parse(args[1]));
                 break;
             }
             case "lockgroups": {
+                locking_groups(int.parse(args[1]));
                 break;
             }
             case "configreloaded": {
