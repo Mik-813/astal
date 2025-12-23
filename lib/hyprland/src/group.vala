@@ -19,10 +19,12 @@ public class Group : Object {
     public Workspace workspace { get; private set; }
     public Monitor monitor { get; private set; }
 
-    internal void sync(GLib.List<string>? addresses) {
+    internal void sync(GLib.List<string> addresses) {
         var hyprland = Hyprland.get_default();
         foreach (var addr in addresses) {
-            _clients.prepend(hyprland.get_client(addr));
+            var client = hyprland?.get_client(addr);
+            if (client != null)
+                _clients.prepend((owned)client);
         }
         _clients.reverse();
 

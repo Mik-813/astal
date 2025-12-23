@@ -64,28 +64,42 @@ public class Hyprland : Object {
         return _clients.get(address);
     }
 
-    private HashTable<string, List<string>> get_grouped_addrs_from_clients(Json.Array clients) {
+    public Group? get_group(string? address) {
+        if (address == null) return null;
+
+        var addr = address.replace("0x", "");
+        if (addr == "" || !(addr in _groups))
+            return null;
+        return _groups.get(addr);
+    }
+
+    private List<string> get_client_group_addresses(Json.Node? client) {
+        var addresses = new GLib.List<string>();
+        if (client == null) return addresses;
+        var grouped = client.get_object().get_member("grouped").get_array();
+        if (grouped == null) return addresses;
+        foreach (var grp in grouped.get_elements()) {
+            addresses.prepend(grp.get_string().replace("0x", ""));
+        }
+        addresses.reverse();
+        return addresses;
+    }
+
+    private HashTable<string, List<string>> get_clients_group_addresses(Json.Array? clients) {
         var grps = new HashTable<string, List<string>>(str_hash, str_equal);
+        if (clients == null) return grps;
         foreach (var c in clients.get_elements()) {
-            var grouped = c.get_object().get_member("grouped").get_array().get_elements();
-            var key = c.get_object().get_member("grouped").get_array().get_string_element(0);
-            var addresses = new GLib.List<string>();
-            foreach (var g in grouped) { addresses.prepend(g.get_string().replace("0x", "")); }
-            addresses.reverse();
-            grps.set(key, (owned)addresses);
+            var addresses = get_client_group_addresses(c);
+            if (addresses.length() == 0) continue;
+            grps.set(addresses.nth_data(0), (owned)addresses);
         }
         return grps;
     }
 
-    public Group? get_group(string address) {
-        if ((address == "") || (address == null))return null;
-        return _groups.get(address.replace("0x", ""));
-    }
-
-    public string pick_primary_address(List<string> addresses) {
+    public string? pick_primary_address(List<string> addresses) {
         var addrs = addresses.copy();
         addrs.sort(GLib.strcmp);
-        return addrs.nth_data(0).replace("0x", "");
+        return addrs.length() == 0 ? null : addrs.nth_data(0).replace("0x", "");
     }
     
     public Group? get_group_from_addresses(List<string> addresses) {
@@ -93,8 +107,8 @@ public class Hyprland : Object {
     }
 
     public void destroy_group(string address) {
-        var group = _groups.get(address);
-        if (group != null) group.destroyed();
+        var group = get_group(address);
+        group?.destroyed();
         _groups.remove(address);
     }
 
@@ -114,8 +128,8 @@ public class Hyprland : Object {
 
     public Workspace focused_workspace { get; private set; }
     public Monitor focused_monitor { get; private set; }
-    public Group focused_group { get; private set; }
     public Client focused_client { get; private set; }
+    public Group focused_group { get { return focused_client.group; } }
 
     // other props
     public List<Bind> binds {
@@ -257,7 +271,7 @@ public class Hyprland : Object {
         var mons = Json.from_string(message("j/monitors")).get_array();
         var wrkspcs = Json.from_string(message("j/workspaces")).get_array();
         var clnts = Json.from_string(message("j/clients")).get_array();
-        var grps = get_grouped_addrs_from_clients(clnts);
+        var grps = get_clients_group_addresses(clnts);
 
         // create
         foreach (var mon in mons.get_elements()) {
@@ -301,10 +315,7 @@ public class Hyprland : Object {
         // focused
         focused_workspace = get_workspace((int)Json.from_string(message("j/activeworkspace"))
                 .get_object().get_member("id").get_int());
-
-        focused_group = get_client(Json.from_string(message("j/activewindow"))
-                                        .get_object().get_member("address").get_string()).group;
-
+                
         focused_client = get_client(Json.from_string(message("j/activewindow"))
                 .get_object().get_member("address").get_string());
     }
@@ -342,11 +353,12 @@ public class Hyprland : Object {
     private void _clean_groups(Json.Array clients) {
         foreach (var c in clients.get_elements()) {
             var addr = c.get_object().get_member("address").get_string().replace("0x", "");
-            var grouped = c.get_object().get_member("address").get_array().get_elements();
-            var addresses = new GLib.List<string>();
-            foreach (var gr in grouped) { addresses.prepend(gr.get_string().replace("0x", "")); }
+            var addresses = get_client_group_addresses(c);
             var primary_addr = pick_primary_address(addresses);
-            if (addresses.length() == 0) {
+            if (addresses.length() == 0
+                && primary_addr != null
+                && primary_addr in _groups
+            ) {
                 destroy_group(primary_addr);
                 continue;
             }
@@ -357,7 +369,7 @@ public class Hyprland : Object {
     }
 
     private void _sync_groups(Json.Array clients) throws Error {
-        var grps = get_grouped_addrs_from_clients(clients);
+        var grps = get_clients_group_addresses(clients);
         foreach (var adresses in grps.get_values()) {
             var g = get_group_from_addresses(adresses);
             if (g != null) g.sync(adresses);
@@ -542,11 +554,9 @@ public class Hyprland : Object {
                 break;
             }
             case "ignoregrouplock":{
-                yield sync_clients();
                 break;
             }
             case "lockgroups": {
-                yield sync_clients();
                 break;
             }
             case "configreloaded": {

@@ -10,7 +10,7 @@ public class Client : Object {
     public int y { get; private set; }
     public int width { get; private set; }
     public int height { get; private set; }
-    public Group group { get; private set; }
+    public Group? group { get; private set; }
     public Workspace workspace { get; private set; }
     public bool floating { get; private set; }
     public Monitor monitor { get; private set; }
