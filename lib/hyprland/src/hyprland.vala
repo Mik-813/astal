@@ -499,6 +499,7 @@ public class Hyprland : Object {
             case "closewindow": {
                 _clients.get(args[1].replace("0x", "")).removed();
                 _clients.remove(args[1]);
+                yield sync_clients();
                 yield sync_workspaces();
                 client_removed(args[1]);
                 notify_property("clients");
