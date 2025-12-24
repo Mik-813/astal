@@ -3,7 +3,7 @@ public class Group : Object {
     public signal void destroyed();
     public signal void moved_to(Workspace workspace);
 
-    public weak Client primary_client { get; private set; }
+    public weak Client visible_client { get; private set; }
     private List<weak Client> _clients = new List<weak Client> ();
     public List<weak Client> clients { owned get { return _clients.copy(); } }
 
@@ -38,27 +38,32 @@ public class Group : Object {
         address = hyprland.pick_primary_address(addresses);
 
         setClientsFromAdresses(addresses);
+
+        foreach (var c in _clients) {
+            if (c.hidden == false) {
+                visible_client = c;
+                break;
+            }
+        }
         
-        primary_client = hyprland.get_client(address);
-        
-        mapped = primary_client.mapped;
-        hidden = primary_client.hidden;
-        floating = primary_client.floating;
-        pinned = primary_client.pinned;
-        x = primary_client.x;
-        y = primary_client.y;
-        width = primary_client.width;
-        height = primary_client.height;
-        workspace = primary_client.workspace;
-        monitor = primary_client.monitor;
+        mapped = visible_client.mapped;
+        hidden = visible_client.hidden;
+        floating = visible_client.floating;
+        pinned = visible_client.pinned;
+        x = visible_client.x;
+        y = visible_client.y;
+        width = visible_client.width;
+        height = visible_client.height;
+        workspace = visible_client.workspace;
+        monitor = visible_client.monitor;
     }
 
     public void focus() {
-        primary_client.focus();
+        visible_client.focus();
     }
 
     public void toggle_floating() {
-        primary_client.toggle_floating();
+        visible_client.toggle_floating();
     }
 }
 }
