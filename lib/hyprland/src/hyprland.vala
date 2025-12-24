@@ -173,14 +173,14 @@ public class Hyprland : Object {
     public signal void client_added(Client client);
     public signal void client_removed(string address);
     public signal void group_destroyed(string[] address);
-    public signal void group_formed(string address);
+    public signal void group_formed(Group group);
     public signal void workspace_added(Workspace workspace);
     public signal void workspace_removed(int id);
     public signal void monitor_added(Monitor monitor);
     public signal void monitor_removed(int id);
 
-    public signal void added_to_group(string address);
-    public signal void removed_from_group(string address);
+    public signal void client_added_to_group(Client client);
+    public signal void client_removed_from_group(Client client);
     public signal void ignoring_group_lock(int state);
     public signal void locking_groups(int state);
 
@@ -409,6 +409,16 @@ public class Hyprland : Object {
         return false;
     }
 
+    private void form_group(string address) throws Error {
+        var client = get_client(address);
+        if (client == null) return;
+        var group = new Group();
+        group.sync(client.grouped);
+        _groups.set(address, group);
+        group_formed(group);
+        notify_property("groups");
+    }
+
     private async void handle_event(string line) throws Error {
         var args = line.split(">>");
 
@@ -539,24 +549,30 @@ public class Hyprland : Object {
             }
             case "togglegroup": {
                 var argv = args[1].split(",");
-                yield sync_clients();
                 if (argv[0] == "0") {
                     group_destroyed(argv[1:argv.length]);
                 }
                 else
                 if (argv[0] == "1") {
-                    group_formed(argv[1]);
+                    var address = argv[1].replace("0x","");
+                    form_group(address);
                 }
+                yield sync_clients();
+                yield sync_workspaces();
                 break;
             }
             case "moveintogroup": {
                 yield sync_clients();
-                added_to_group(args[1]);
+                var client = get_client(args[1].replace("0x",""));
+                if (client == null) break;
+                client_added_to_group(client);
                 break;
             }
             case "moveoutofgroup": {
                 yield sync_clients();
-                removed_from_group(args[1]);
+                var client = get_client(args[1].replace("0x",""));
+                if (client == null) break;
+                client_removed_from_group(client);
                 break;
             }
             case "ignoregrouplock":{
