@@ -493,10 +493,7 @@ public class Hyprland : Object {
             }
             case "openwindow": {
                 var addr = args[1].split(",")[0];
-                if (yield try_add_client(addr)) {
-                    yield sync_clients();
-                    yield sync_workspaces();
-                }
+                yield try_add_client(addr);
                 break;
             }
             case "closewindow": {
