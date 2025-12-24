@@ -73,13 +73,12 @@ public class Hyprland : Object {
         return _groups.get(addr);
     }
 
-    private List<string> get_client_group_addresses(Json.Node? client) {
+    private List<string> get_client_group_addresses(Json.Node client) {
         var addresses = new GLib.List<string>();
-        if (client == null) return addresses;
         var grouped = client.get_object().get_member("grouped").get_array();
         if (grouped == null) return addresses;
-        foreach (var grp in grouped.get_elements()) {
-            addresses.prepend(grp.get_string().replace("0x", ""));
+        foreach (var addr in grouped.get_elements()) {
+            addresses.prepend(addr.get_string().replace("0x", ""));
         }
         addresses.reverse();
         return addresses;
@@ -97,9 +96,12 @@ public class Hyprland : Object {
     }
 
     public string? pick_primary_address(List<string> addresses) {
-        var addrs = addresses.copy();
-        addrs.sort(GLib.strcmp);
-        return addrs.length() == 0 ? null : addrs.nth_data(0).replace("0x", "");
+        if (addresses.length() == 0) return null;
+        foreach (var addr in addresses) {
+            if (addr in _groups) 
+                return addr.replace("0x", "");
+        }
+        return addresses.nth_data(0).replace("0x", "");
     }
     
     public Group? get_group_from_addresses(List<string> addresses) {
@@ -360,15 +362,7 @@ public class Hyprland : Object {
         foreach (var c in clients.get_elements()) {
             var addr = c.get_object().get_member("address").get_string().replace("0x", "");
             var addresses = get_client_group_addresses(c);
-            var primary_addr = pick_primary_address(addresses);
-            if (addresses.length() == 0
-                && primary_addr != null
-                && primary_addr in _groups
-            ) {
-                destroy_group(primary_addr);
-                continue;
-            }
-            if (addr in _groups && addr != primary_addr){
+            if (addresses.length() == 0 && addr in _groups) {
                 destroy_group(addr);
             }
         }
@@ -407,7 +401,7 @@ public class Hyprland : Object {
         }
 
         var client = new Client();
-        _clients.insert(addr, client);
+        _clients.insert(addr.replace("0x", ""), client);
         yield sync_clients();
         yield sync_workspaces();
         client_added(client);
@@ -506,7 +500,7 @@ public class Hyprland : Object {
                 break;
             }
             case "closewindow": {
-                _clients.get(args[1]).removed();
+                _clients.get(args[1].replace("0x", "")).removed();
                 _clients.remove(args[1]);
                 yield sync_workspaces();
                 client_removed(args[1]);
