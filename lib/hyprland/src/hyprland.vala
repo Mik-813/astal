@@ -376,12 +376,18 @@ public class Hyprland : Object {
 
     private void _sync_groups(Json.Array clients) throws Error {
         var grps = get_clients_group_addresses(clients);
-        foreach (var adresses in grps.get_values()) {
-            var g = get_group_from_addresses(adresses);
-            if (g != null) g.sync(adresses);
+        foreach (var addresses in grps.get_values()) {
+            if (addresses.length() == 0) continue;
+            var primary_addr = pick_primary_address(addresses);
+            var g = get_group(primary_addr);
+            if (g == null) {
+                g = new Group();
+                _groups.set(primary_addr, g);
+            }
+            g.sync(addresses);
         }
-        notify_property("groups");
         _clean_groups(clients);
+        notify_property("groups");
     }
 
     public async void sync_clients() throws Error {

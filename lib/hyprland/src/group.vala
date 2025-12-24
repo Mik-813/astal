@@ -19,17 +19,28 @@ public class Group : Object {
     public Workspace workspace { get; private set; }
     public Monitor monitor { get; private set; }
 
-    internal void sync(GLib.List<string> addresses) {
+    private void setClientsFromAdresses(List<string> addresses) {
         var hyprland = Hyprland.get_default();
+
+        _clients = new List<weak Client>();
         foreach (var addr in addresses) {
             var client = hyprland?.get_client(addr);
             if (client != null)
                 _clients.prepend((owned)client);
         }
         _clients.reverse();
+        notify_property("clients");
+    }
 
-        primary_client = _clients.nth_data(0);
-        address = primary_client.address;
+    internal void sync(GLib.List<string> addresses) {
+        var hyprland = Hyprland.get_default();
+
+        address = hyprland.pick_primary_address(addresses);
+
+        setClientsFromAdresses(addresses);
+        
+        primary_client = hyprland.get_client(address);
+        
         mapped = primary_client.mapped;
         hidden = primary_client.hidden;
         floating = primary_client.floating;
